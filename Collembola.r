@@ -1,5 +1,5 @@
 # Energyflux_Mydiv
-Use for second project, to construct the food web and calculate the energy fluxes 
+#Use for second project, to construct the food web and calculate the energy fluxes 
 Collembola_Final <- Collembola_Community %>% full_join(Collembola_Alllength) %>% 
 # The abundance == 1, but there is bodylength_mm 
 # Collembola_twice %>% filter (Sample_ID %in% c("2021_May_61_5", "2021_May_73_5", "2021_May_61_510")) %>% 
@@ -11,9 +11,11 @@ Collembola_Final <- Collembola_Community %>% full_join(Collembola_Alllength) %>%
   filter(!is.na(Abundance)) %>% 
   left_join(
   Collembola_twice %>% select(order, suborder, family) %>% unique 
-) %>% left_join(LWbiomass %>% rename("suborder" = "Study_Group") %>% 
+) %>% 
+left_join(LWbiomass %>% rename("suborder" = "Study_Group") %>% 
                   select(suborder, Measures, Functions, LC, a, b1, b2,`Function(WW-FW)`, c,d, lni0, s, E_evK) %>% mutate(b1 = as.numeric(b1))) %>% 
-  mutate(DW_ug = a*(LC*bodylength_mm)^b1) %>% mutate(FW_ug = c*DW_ug^d)   %>%  ### The argument here, the function was attained by using the photography pictures
+ ### The argument here, the function was attained by using the photography pictures
+  mutate(DW_ug = a*(LC*bodylength_mm)^b1) %>% mutate(FW_ug = c*DW_ug^d)   %>% 
   mutate(Biomass_mgm2 = FW_ug*Density_m2/1000) %>% 
   mutate(Tk = ifelse(month == "May" & depth == 5,Temp_AprMay_soil5cm, ###Asing the environmental temperature based on the month and depth 
                      ifelse (month == "May" & depth == 510, Temp_AprMay_soil10cm, 
