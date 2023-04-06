@@ -1,7 +1,7 @@
 # Energyflux_Mydiv
 #Use for second project, to construct the food web and calculate the energy fluxes 
 Collembola_Final <- Collembola_Community %>% full_join(Collembola_Alllength) %>% 
-# The abundance == 1, but there is bodylength_mm 
+# The abundance == 1, but there is no bodylength_mm 
 # Collembola_twice %>% filter (Sample_ID %in% c("2021_May_61_5", "2021_May_73_5", "2021_May_61_510")) %>% 
 #   filter(family %in% c("Arrhopalitidae", "Hypogastruridae", "Neanuridae")) --> "2021_May_61_5", "Arrhopalitidae" == 0.5
 # -->  "2021_May_73_5", "Hypogastruridae" 0.5,  "2021_May_61_510", "Neanuridae", 0.3mm
@@ -11,7 +11,8 @@ Collembola_Final <- Collembola_Community %>% full_join(Collembola_Alllength) %>%
   filter(!is.na(Abundance)) %>% 
   left_join(
   Collembola_twice %>% select(order, suborder, family) %>% unique 
-) %>% ### The aimed structure: sampling_id, year, month, plot, depth, order, suborder, family, abundance, density_m2, average bodylength (each family in sampling soil core) 
+) %>% ### The structure to discribe the collembola community: sampling_id, year, month, plot, depth, order, suborder, family, abundance, density_m2, average bodylength (each family in sampling soil core) 
+###LWbiomass: based on the study group (here is suborder), we have the function to calculate the biomass, and then the matabolic rates 
 left_join(LWbiomass %>% rename("suborder" = "Study_Group") %>% 
                   select(suborder, Measures, Functions, LC, a, b1, b2,`Function(WW-FW)`, c,d, lni0, s, E_evK) %>% mutate(b1 = as.numeric(b1))) %>% 
  ### The argument here, the function was attained by using the photography pictures (LC)
