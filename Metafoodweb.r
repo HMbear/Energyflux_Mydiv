@@ -1,270 +1,473 @@
-# Energyflux_Mydiv
-Use for second project, to construct the food web and calculate the energy fluxes 
-#####Check the species from belowground
-## Group names 
-SoilMeso <- c("Collembola:Herbivores-Microbivores", "Collembola:Microbivores", "Collembola:Herbivores-Detritivores-Microbivores","Collembola:Microbivores-Predators",
-              "Mesostigmata:Predators", "Oribatida:Detritivores-Microbivores-Predators","Astigmata:Herbivores-Detritivores-Microbivores-Predators", "Prostigmata:Herbivores-Microbivores-Predators",
-              "Nemotoda:Bacterivores", "Nemotoda:Predators", "Nemotoda:Fungivores" , "Nemotoda:Herbivores", "Nemotoda:Omnivores", 
-              "Protura:Fungivores", "Pauropoda:Herbivores-Detritivores-Microbivores", "Symphyla:Herbivores-Detritivores-Fungivores")
+library(tidyverse)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(ggridges)
 
-SoilMacrofauna <- Feedgroup[,c("Parent_Group", "order", "family", "genus", "Group")]  %>%  ###Only live in soil or soil surface
-  filter((Parent_Group %in% c("Isopoda", "Diplopoda", "Chilopoda",  "Haplotaxida"))) %>% select(Group) %>% unique %>% filter(!is.na(Group))
-SoilMacrofauna <- c(SoilMacrofauna$Group, "Lumbricidae:Anecic", "Lumbricidae:Endogeic","Lumbricidae")
+###The links between animals, is there any links between them, potentailly 
+Feedgroup <-  read_excel("Dataset_May/Taxonomic_Checklist_MyDiv_Energyfluxes.xlsx")
 
+#####################################Potential links ###############################################
+groups <- unique(Feedgroup$Group)
+PPmat <- as.data.frame(matrix(0, nrow = length(groups), ncol = length(groups)))
+colnames(PPmat) <- rownames(PPmat) <- groups
 
-Macrofauna <- Feedgroup[,c("Parent_Group", "order", "family", "genus", "Group")]  %>% 
-  filter((Parent_Group %in% c("Coleoptera", "Hymenoptera","Formicidae",
-                             "Hymenoptera", "Diptera", "Hemiptera","Formicidae", "Orthoptera",  "Trichoptera", "Neuroptera", "Psocoptera", "Thysanoptera", 
-                             "Araneae","Opiliones", "Dermaptera", "Gastropoda",  "Pseudoscorpiones", "Lepidoptera" ))) %>% select(Group) %>% unique %>% filter(!is.na(Group))
-Macrofauna <- c(Macrofauna$Group)
+##
+PPmat[which(grepl("Nemotoda", rownames(PPmat)) == TRUE), which(grepl("Nemotoda" , colnames(PPmat)) == TRUE) ] <- 1 #
 
-  
-mat = matrix(NA,
-             nrow = length(SoilMeso) + length(SoilMacrofauna) + length(Macrofauna) +4,
-             ncol =length(SoilMeso) + length(SoilMacrofauna) + length(Macrofauna) +4)
-colnames(mat) <- c("Plants", "Detritus", "Bacteria", "Fungi", c(SoilMeso,SoilMacrofauna, Macrofauna))
-rownames(mat) <- c("Plants", "Detritus", "Bacteria", "Fungi",c(SoilMeso,SoilMacrofauna, Macrofauna))
+PPmat[c(which(grepl("Nemotoda", rownames(PPmat)) == TRUE)), which(grepl("Oribatida", colnames(PPmat)) == TRUE) ] <- 1 #
+PPmat[which(grepl("Nemotoda", rownames(PPmat)) == TRUE),  which(grepl("Collembola", colnames(PPmat)) == TRUE)  ] <- 1 #
+PPmat[which(grepl("Nemotoda", rownames(PPmat)) == TRUE), which(grepl("Astigmata" , colnames(PPmat)) == TRUE) ] <- 1 #
+PPmat[which(grepl("Nemotoda", rownames(PPmat)) == TRUE), which(grepl("Symphyla" , colnames(PPmat)) == TRUE) ] <- 1 #
+PPmat[which(grepl("Nemotoda", rownames(PPmat)) == TRUE), which(grepl("Lumbricina" , colnames(PPmat)) == TRUE) ] <- 1 # 
+PPmat[which(grepl("Nemotoda", rownames(PPmat)) == TRUE), which(grepl("Haplotaxida" , colnames(PPmat)) == TRUE) ] <- 1 
 
-##Soil animals, collembola
-mat[c("Plants","Bacteria","Fungi") ,   "Collembola:Herbivores-Microbivores"] = 1
-mat[c("Bacteria","Fungi") ,   "Collembola:Microbivores"] = 1
-mat[c("Plants","Detritus","Bacteria","Fungi") ,   "Collembola:Herbivores-Detritivores-Microbivores"] = 1
-mat[c("Bacteria","Fungi", SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]) , "Collembola:Microbivores-Predators"] =  c(1,1,rep(1/length(SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]),
-                                                                                                                                         length( SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )])))
-### Mites
-mat[SoilMeso,  "Mesostigmata:Predators"] = rep(1/length(SoilMeso), length(SoilMeso))
-mat[c("Plants", "Detritus", "Bacteria", "Fungi", SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]), "Astigmata:Herbivores-Detritivores-Microbivores-Predators" ] = 
-  c(0.5, 0.5, 0.5, 1, rep(0.5/length(SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]), length(SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )])))
+SoftMesoPreys <- c(which(grepl("Astigmata", rownames(PPmat)) == TRUE),
+                   which(grepl("Protura", rownames(PPmat)) == TRUE),
+                   which(grepl("Pauropoda", rownames(PPmat)) == TRUE),
+                   which(grepl("Symphyla", rownames(PPmat)) == TRUE),
+                   which(grepl("Collembola", rownames(PPmat)) == TRUE),
+                   which(grepl("Mesostigmata", rownames(PPmat)) == TRUE),
+                   which(grepl("Prostigmata", rownames(PPmat)) == TRUE))
 
-mat[c( "Detritus", "Bacteria", "Fungi", SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]), "Oribatida:Detritivores-Microbivores-Predators"] =
-  c(1,0.5,1,rep(0.5/length( SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]),length( SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )])))
+PPmat[c(which(grepl("Nemotoda", rownames(PPmat)) == TRUE), SoftMesoPreys) , which(grepl("Prostigmata", colnames(PPmat)) == TRUE) ] <- 1
+PPmat[c(which(grepl("Nemotoda", rownames(PPmat)) == TRUE), SoftMesoPreys) , which(grepl("Mesostigmata", colnames(PPmat)) == TRUE) ] <- 1
 
-mat[c("Plants","Bacteria", "Fungi",SoilMeso),"Prostigmata:Herbivores-Microbivores-Predators"] = c(0.5,0.5,0.5,rep(1/length(SoilMeso),
-                                                                                    length(SoilMeso)))
+###Prostigmata prasites and Mesostigmata 
+#They are parasite on a wide range of vertebrates and invertebrates, 
+# free living ones can predate soil inhabiting mites and insects -- flies, thrips, fly larve, anthropod pests 
+PPmat[which(grepl("Oribatida", rownames(PPmat)) == FALSE) , "Mesostigmata:Predators:Parasites"] <- 1 
 
-###Nemotode
-mat["Bacteria",  "Nemotoda:Bacterivores"] =1
-mat[SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )],  "Nemotoda:Predators"] = rep(1/length(SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]),
-                                                                                       length(SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]))
-mat["Fungi",  "Nemotoda:Fungivores"] =1
-mat["Plants", "Nemotoda:Herbivores"] = 1
-mat[c("Plants", "Bacteria", SoilMeso[which(grepl("Nemotoda", SoilMeso) == TRUE )]), "Nemotoda:Omnivores"] = c(0.5, 1, rep(1/length(which(grepl("Nemotoda", SoilMeso) == TRUE )), 
-                                                                                                                                         length(which(grepl("Nemotoda", SoilMeso) == TRUE ))))
-
-###Symphyla, Pauropoda, Protura 
-mat["Fungi","Protura:Fungivores"] <- 1
-mat[c("Plants","Detritus", "Bacteria", "Fungi"),"Pauropoda:Herbivores-Detritivores-Microbivores" ] <- c(0.5, 1, 0.5, 1)
-mat[c("Plants", "Detritus","Fungi", SoilMeso) , "Symphyla:Herbivores-Detritivores-Fungivores"] <- c(1, 0.5, 1, rep(0.5/length(SoilMeso), length(SoilMeso)))
+Prostig_host <- c( ###similar as prey list 
+  which(grepl("Coleoptera",rownames(PPmat)) == TRUE),
+  which(grepl("Hymenoptera",rownames(PPmat)) == TRUE),
+  which(grepl("Formicidae",rownames(PPmat)) == TRUE),
+  which(grepl("Diptera",rownames(PPmat)) == TRUE),
+  which(grepl("Hemiptera",rownames(PPmat)) == TRUE),
+  which(grepl("Orthoptera",rownames(PPmat)) == TRUE),
+  which(grepl("Neuropterida",rownames(PPmat)) == TRUE),
+  which(grepl("Thysanoptera",rownames(PPmat)) == TRUE),
+  which(grepl("Araneae",rownames(PPmat)) == TRUE),
+  which(grepl("Opiliones",rownames(PPmat)) == TRUE),
+  which(grepl("Lepidoptera",rownames(PPmat)) == TRUE)
+)
+PPmat[Prostig_host , "Prostigmata:Predators:Parasites"] <- 1 
  
-###Diplopoda
-mat["Detritus", "Diplopoda:Detritivores"] <- 1
-mat["Fungi", "Diplopoda:Fungivores"] <- 1 
 
-###isopoda 
-mat[c( "Detritus","Bacteria","Fungi"), "Isopoda:Detritivores-Fungivores-Bacterivores" ] <- c (1, 0.5, 1)
+PPmat[c(which(grepl("Diplura", rownames(PPmat)) == TRUE),
+            which(grepl("Pseudoscorpiones", rownames(PPmat)) == TRUE) , 
+            which(grepl("Larve", rownames(PPmat)) == TRUE), SoftMesoPreys) , which(grepl("Diplura", colnames(PPmat)) == TRUE) ] <- 1
 
-##Gastropoda, what kinds of animals that they feed on ? 
-mat[c("Plants", "Detritus", "Bacteria", "Fungi"),which(grepl("Gastropoda",rownames(mat)) == TRUE)] <- c(0.5,1,1,1)
-
-##Psocoptera
-mat[c("Plants","Bacteria", "Fungi"), "Psocoptera:Detritivores"] <- c(0.5, 0.5, 1)
-
-##Worms
-mat[c("Plants", "Detritus", "Bacteria", "Fungi", rownames(mat[which(grepl("Nemotoda", rownames(mat)) == TRUE),])),
-    which(grepl("Lumbricidae",rownames(mat)) == TRUE)] <- c(0.5,1,0.5,0.5, rep(0.5/length(which(grepl("Nemotoda", rownames(mat)) == TRUE)), length(which(grepl("Nemotoda", rownames(mat)) == TRUE))))
-mat[c("Plants", "Detritus", "Bacteria", "Fungi"), "Enchytraeidae:Detritivores"] <- c(0.5, 1, 0.5, 0.5)                                   
+PPmat[c(which(grepl("Psocoptera", rownames(PPmat)) == TRUE),
+            which(grepl("Thysanoptera", rownames(PPmat)) == TRUE),
+        which(grepl("Coleoptera-Larve", rownames(PPmat)) == TRUE) , 
+        which(grepl("Oribatida", rownames(PPmat)) == TRUE) ,  ## Olga suggested
+        which(grepl("Diplura", rownames(PPmat)) == TRUE) ,  ## Olga suggested
+        which(grepl("Pseudoscorpiones", rownames(PPmat)) == TRUE) ,  ## Olga suggested
+        SoftMesoPreys) , which(grepl("Pseudoscorpiones", colnames(PPmat)) == TRUE) ] <- 1
+###Potapova et al., 2022,suggested "Pseudoscorpiones" may predate on beetles' larve, 
 
 
-###Chilopoda --> Predators 
+#####	Ixodida, they are parasites, blood sucking 
+##
+Ixodia_Predators <- c(
+  which(grepl("Prostigmata", colnames(PPmat)) == TRUE),
+  which(grepl("Mesostigmata", colnames(PPmat)) == TRUE),  
+  which(grepl("Coleoptera:", colnames(PPmat)) == TRUE),  
+  which(grepl("Formicidae", colnames(PPmat)) == TRUE), 
+  which(grepl("Diptera:", colnames(PPmat)) == TRUE), 
+  which(grepl("Hemiptera:", colnames(PPmat)) == TRUE), 
+  which(grepl("Neuropterida", colnames(PPmat)) == TRUE), 
+  which(grepl("Araneae:Wondering",colnames(PPmat)) == TRUE),
+  which(grepl("Opiliones",colnames(PPmat)) == TRUE),
+  which(grepl("Dermaptera", colnames(PPmat)) == TRUE)
+  )
+PPmat[which(grepl("Ixodida", rownames(PPmat)) == TRUE ) , Ixodia_Predators] <- 1 
+
+
+#### Isopoda: don't eat animals 
+
+###Chilopoda --> Predators Reference on Potapov 2022, convert the text as following codes 
 # "Chilopoda:Lithobiomorpha"  --> Fungal channels, Collembola, and earthworms                             
 # "Chilopoda:Geophilomorpha" --> Gastropoda, Bacterial channels
-Chilop_Preys <- c( which(grepl("Isopoda", rownames(mat)) == TRUE ),
-                  which(grepl("Orthoptera", rownames(mat)) == TRUE), 
-                  which(grepl("Hemiptera", rownames(mat)) == TRUE), 
-                  which(grepl("Opiliones", rownames(mat)) == TRUE), 
-                  which(grepl("Araneae", rownames(mat)) == TRUE), 
-                  which(grepl("Lumbricidae", rownames(mat)) == TRUE), 
-                  which(grepl("Enchytraeidae", rownames(mat)) == TRUE),
-                  which(grepl("Dermaptera", rownames(mat)) == TRUE),
-                  which(grepl("Gastropoda",rownames(mat)) == TRUE), 
-                  which(grepl("Diptera-Larve", rownames(mat)) == TRUE))
+Chilop_Preys <- c(
+  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+  which(grepl("Lumbricina", rownames(PPmat)) == TRUE), ##potapova et al., 2022
+  which(grepl("Diplopoda", rownames(PPmat)) == TRUE ), ##potapova et al., (2022)
+  which(grepl("Orthoptera", rownames(PPmat)) == TRUE), 
+  which(grepl("Psocoptera", rownames(PPmat)) == TRUE), ## smaller size, primary decomposer (potapova et al., 2022)
+  which(grepl("Thysanoptera", rownames(PPmat)) == TRUE ), ##smaller size, secondary decomposer (potapova)
+  which(grepl("Isopoda", rownames(PPmat)) == TRUE ), ##suggested by Schuldt 
+  which(grepl("Coleoptera",rownames(PPmat)) == TRUE),##suggested by schuldt 
+  which(grepl("Hemiptera", rownames(PPmat)) == TRUE), #suggested by schuldt
+  which(grepl("Araneae", rownames(PPmat)) == TRUE), ##potapova et al., 2022 
+  which(grepl("Opiliones", rownames(PPmat)) == TRUE), 
+  which(grepl("Dermaptera", rownames(PPmat)) == TRUE), 
+  which(grepl("Gastropoda",rownames(PPmat)) == TRUE), ## potapova et al., 2022 
+  which(grepl("Enchytraeidae", rownames(PPmat)) == TRUE), ##potapova et al., 2022
+  which(grepl("Hemiptera-Juvenile", rownames(PPmat)) == TRUE), ##smaller sizes
+  which(grepl("Larve", rownames(PPmat)) == TRUE), #smaller size
+  which(grepl("Pupea", rownames(PPmat)) == TRUE)) ##smaller size
 
-mat[c(SoilMeso,rownames(mat[Chilop_Preys,]) ),"Chilopoda:Geophilomorpha"] <- 1
-mat[c(SoilMeso,rownames(mat[Chilop_Preys,])[1:14] ),"Chilopoda:Lithobiomorpha"] <- 1
+PPmat[c(SoftMesoPreys, Chilop_Preys ), which(grepl("Chilopoda", colnames(PPmat)) == TRUE )] <- 1
 
-###Coleoptera 
-mat["Detritus", "Coleoptera:Detritivores"] <- 1 
-mat["Plants", "Coleoptera:Herbivores"] <- 1 
-mat["Fungi", "Coleoptera:Fungivores" ] <- 1
-mat[which(grepl("Nemotoda", SoilMeso) == TRUE ), "Coleoptera:Necrovores"] <- rep(1/length(which(grepl("Nemotoda", SoilMeso) == TRUE )), 
-                                                                                 length(which(grepl("Nemotoda", SoilMeso) == TRUE )))
-mat["Plants","Coleoptera:Herbivores:Granivores"] <- 1
-mat[c("Plants", "Detritus", "Bacteria", "Fungi"), "Coleoptera:Herbivores-Detritivores-Microbivores" ] <- c(1, 1, 0.5,1)
-mat[c("Detritus", "Fungi"), "Coleoptera:Detritivores-Fungivores"] <- c(1,1)
 
-Carabi_Preys <- c(which(grepl("Collembola", rownames(mat)) == TRUE ),# 
-                  which(grepl("Isopoda", rownames(mat)) == TRUE ),#
-                  which(grepl("Lumbricidae", rownames(mat)) == TRUE), #
-                  which(grepl("Enchytraeidae", rownames(mat)) == TRUE),#
-                  which(grepl("Chilopoda",rownames(mat)) == TRUE),
-                  which(grepl("Diplopoda",rownames(mat)) == TRUE),
-                  which(grepl("Orthoptera", rownames(mat)) == TRUE), #
-                  which(grepl("Hemiptera", rownames(mat)) == TRUE), #
-                  which(grepl("Opiliones", rownames(mat)) == TRUE), 
-                  which(grepl("Araneae", rownames(mat)) == TRUE), 
-                  which(grepl("Gastropoda",rownames(mat)) == TRUE), #
-                  which(grepl("Dermaptera",rownames(mat)) == TRUE),
-                  which(grepl("Thysanoptera",rownames(mat)) == TRUE),
-                  which(grepl("Coleoptera",rownames(mat)) == TRUE), 
-                  which(grepl("Lepidoptera-Larve:Herbivores",rownames(mat)) == TRUE),
-                  which(grepl("Diptera-Larve",rownames(mat)) == TRUE)) 
-mat[Carabi_Preys, "Coleoptera:Predators:Carabidae" ] <- 1
+####Beetles
+Carabi_Preys <- c( ## Mediumand large ground beetles predominantl feed on larger prey and rarely onmicroarthropods 
+  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+   which(grepl("Collembola", rownames(PPmat)) == TRUE ),# ## smaller sizes Potapov et al., 2022
+  which(grepl("Lumbricina", rownames(PPmat)) == TRUE), #Potapov et al., 2022
+  which(grepl("Diplopoda",rownames(PPmat)) == TRUE),
+  which(grepl("Isopoda", rownames(PPmat)) == TRUE ),#
+  which(grepl("Chilopoda",rownames(PPmat)) == TRUE),
+  which(grepl("Coleoptera",rownames(PPmat)) == TRUE),
+  which(grepl("Formicidae", rownames(PPmat)) == TRUE), 
+  which(grepl("Hemiptera", rownames(PPmat)) == TRUE), #
+  which(grepl("Orthoptera", rownames(PPmat)) == TRUE), #
+  #which(grepl("Raphidioptera", rownames(PPmat)) == TRUE), # 
+  which(grepl("Thysanoptera",rownames(PPmat)) == TRUE),## smaller sizes
+  which(grepl("Psocoptera", rownames(PPmat)) == TRUE), ## smaller sizes
+  which(grepl("Opiliones", rownames(PPmat)) == TRUE), 
+  which(grepl("Araneae", rownames(PPmat)) == TRUE), 
+  which(grepl("Gastropoda",rownames(PPmat)) == TRUE), #Potapov et al., 2022
+  which(grepl("Dermaptera",rownames(PPmat)) == TRUE),
+  which(grepl("Enchytraeidae", rownames(PPmat)) == TRUE),
+  which(grepl("Larve", rownames(PPmat)) == TRUE), #smaller size
+  which(grepl("Pupea", rownames(PPmat)) == TRUE) ##smaller size
+ ) 
+PPmat[Carabi_Preys,  which(grepl("Coleoptera:", colnames(PPmat)) == TRUE ) ] <- 1 ###this is specific for adults 
 
-RoveBeetles_Prey <- c( which(grepl("Isopoda", rownames(mat)) == TRUE),#
-                  which(grepl("Hemiptera", rownames(mat)) == TRUE), #
-                  which(grepl("Gastropoda",rownames(mat)) == TRUE), #
-                  which(grepl("Coleoptera",rownames(mat)) == TRUE) ### Still need to confirm what they exactly eat 
-                    )
 
-mat["Fungi","Coleoptera:Omnivores:Staphylinidae"] <- 1
-mat[RoveBeetles_Prey, "Coleoptera:Omnivores:Staphylinidae"] <- rep(1/length(RoveBeetles_Prey), length(RoveBeetles_Prey))
+#########rove beetles also adapted to hunt mites, so we add more preys on geenral predators 
+PPmat[c(SoftMesoPreys, 
+            which(grepl("Oribatida",rownames(PPmat)) == TRUE)),  which(grepl("Staphylinidae", colnames(PPmat)) == TRUE ) ] <- 1
 
-mat[c("Plants", "Detritus", "Bacteria", "Fungi"), "Coleoptera:Omnivores:Elateridae"] <- c(1,1,0.5,1)
-mat[RoveBeetles_Prey, "Coleoptera:Omnivores:Elateridae"] <- rep(1/length(RoveBeetles_Prey), length(RoveBeetles_Prey))
+####The larve of beetles 
+PPmat[c(
+  which(grepl("Enchytraeidae", rownames(PPmat)) == TRUE),
+  which(grepl("Collembola", rownames(PPmat)) == TRUE ),
+  which(grepl("Lumbricina", rownames(PPmat)) == TRUE), #Potapov et al., 2022
+  which(grepl("Gastropoda",rownames(PPmat)) == TRUE), #Potapov et al., 2022
+  which(grepl("Larve", rownames(PPmat)) == TRUE)
+),  which(grepl("Coleoptera-Larve", colnames(PPmat)) == TRUE ) ] <- 1 ###this is specific for adults 
 
-mat[c('Plants', "Fungi"), "Coleoptera:Herbivores-Fungivores-Predators"] <- c(1,1)
-mat["Plants", "Coleoptera:Predators-Herbivores" ] <- 1
-mat[RoveBeetles_Prey, c( "Coleoptera:Herbivores-Fungivores-Predators","Coleoptera:Predators-Herbivores", "Coleoptera:Predators" )] <- rep(1/length(RoveBeetles_Prey), length(RoveBeetles_Prey))
 
-Hemeno_Preys <- c(
-  which(grepl("Thysanoptera",rownames(mat)) == TRUE),
-  which(grepl("Coleoptera",rownames(mat)) == TRUE), 
-  which(grepl("Hemiptera", rownames(mat)) == TRUE), #
-  which(grepl("Diptera", rownames(mat)) == TRUE), #
-  which(grepl("Araneae", rownames(mat)) == TRUE), 
-  which(grepl("Lepidoptera", rownames(mat)) == TRUE), 
-  which(grepl("Neuroptera", rownames(mat)) == TRUE), 
-  which(grepl("Psocoptera", rownames(mat)) == TRUE), 
-  which(grepl("Thysanoptera",rownames(mat)) == TRUE),
-  which(grepl("Hymenoptera",rownames(mat)) == TRUE),
-  which(grepl("Trichoptera",rownames(mat)) == TRUE) ,
-  which(grepl("Dermaptera",rownames(mat)) == TRUE)
+#####Hymenoptera 
+Hemeno_Preys <- c( # Barnes et al., 2020; Cedar Creek BEstudy, correlation matrix 
+  which(grepl("Diplopoda",rownames(PPmat)) == TRUE),
+  which(grepl("Coleoptera",rownames(PPmat)) == TRUE), ## Are the sizes relaly
+  which(grepl("Hymenoptera",rownames(PPmat)) == TRUE),
+  which(grepl("Diptera", rownames(PPmat)) == TRUE), #
+  which(grepl("Hemiptera", rownames(PPmat)) == TRUE), #
+  #which(grepl("Raphidioptera", rownames(PPmat)) == TRUE), # 
+  which(grepl("Neuropterida", rownames(PPmat)) == TRUE), 
+  which(grepl("Psocoptera", rownames(PPmat)) == TRUE), ## smaller sizes 
+  which(grepl("Dermaptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Araneae", rownames(PPmat)) == TRUE), 
+  which(grepl("Opiliones", rownames(PPmat)) == TRUE), 
+  which(grepl("Thysanoptera",rownames(PPmat)) == TRUE), ##smaller sizes
+  which(grepl("Pseudoscorpiones", rownames(PPmat)) == TRUE), ## smaller sizes 
+  which(grepl("Lepidoptera", rownames(PPmat)) == TRUE), 
+  which(grepl("Orthoptera",rownames(PPmat)) == TRUE) ##suggested by schuldt 
 )
-mat[Hemeno_Preys, "Hymenoptera:Predators"] <- 1
+PPmat[Hemeno_Preys, which(grepl("Hymenoptera:", colnames(PPmat)) == TRUE )] <- 1 ###Here only for adults 
 
-Hemeno_HerbiPreys <- c(
-  which(grepl("Coleoptera:Detritivores",rownames(mat)) == TRUE),
-  which(grepl("Diptera:Herbivores",rownames(mat)) == TRUE),
-  which(grepl("Hemiptera:Herbivores",rownames(mat)) == TRUE),
-  which(grepl("Hymenoptera:Herbivores",rownames(mat)) == TRUE),
-  which(grepl("Hymenoptera:Predators",rownames(mat)) == TRUE),
-  which(grepl("Lepidoptera", rownames(mat)) == TRUE), 
-  which(grepl("Orthoptera", rownames(mat)) == TRUE), 
-  which(grepl("Araneae", rownames(mat)) == TRUE)
+###does normal predators of Hymenoptera differ from Hymenoptera:Parasites 
+##Currently the codes for  `Hymenoptera:Predators:Parasites` are same as other predators 
+##add the extra links with Hymenoptera:Predators:Parasites
+PPmat[c(Hemeno_Preys, 
+        which(grepl("Formicidae",rownames(PPmat)) == TRUE)), #suggested by schuldt 
+      which(grepl("Hymenoptera:Predators:Parasites", colnames(PPmat)) == TRUE )] <- 1 ###Here only for adults 
+
+####What is "Formicidae
+Ant_Preys <- c(
+  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+  which(grepl("Oribatida",rownames(PPmat)) == TRUE),
+  which(grepl("Pauropoda",rownames(PPmat)) == TRUE), 
+  which(grepl("Symphyla",rownames(PPmat)) == TRUE), 
+  which(grepl("Protura",rownames(PPmat)) == TRUE), # suggested by olga 
+  which(grepl("Collembola",rownames(PPmat)) == TRUE),
+  which(grepl("Diplopoda",rownames(PPmat)) == TRUE), 
+  which(grepl("Isopoda",rownames(PPmat)) == TRUE), 
+  which(grepl("Chilopoda",rownames(PPmat)) == TRUE),
+  which(grepl("Formicidae",rownames(PPmat)) == TRUE),
+  which(grepl("Coleoptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Diptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Sternorrhyncha",rownames(PPmat)) == TRUE),
+  which(grepl("Orthoptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Psocoptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Araneae",rownames(PPmat)) == TRUE),
+  which(grepl("Opiliones", rownames(PPmat)) == TRUE), 
+  which(grepl("Thysanoptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Gastropoda",rownames(PPmat)) == TRUE), 
+  which(grepl("Lepidoptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Pupea",rownames(PPmat)) == TRUE), 
+  which(grepl("Larve",rownames(PPmat)) == TRUE), 
+  which(grepl("Juvenile",rownames(PPmat)) == TRUE), 
+  which(grepl("Enchytraeidae", rownames(PPmat)) == TRUE),
+  which(grepl("Lumbricina", rownames(PPmat)) == TRUE)
+  )
+PPmat[Ant_Preys, which(grepl("Formicidae", colnames(PPmat)) == TRUE )] <- 1 
+
+PPmat[which(grepl("Hemiptera", rownames(PPmat)) == TRUE), #suggested by Schuldt
+      c(which(grepl("Formicidae:Predators", colnames(PPmat)) == TRUE ), 
+      which(grepl("Formicidae:Omnivores", colnames(PPmat)) == TRUE)) ] <- 1
+
+
+####Diptera
+###Dipera adults, predators, hunting, or normal predators
+
+Diptera_Preys <- c(
+  SoftMesoPreys, 
+  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+  which(grepl("Diplopoda",rownames(PPmat)) == TRUE), 
+  which(grepl("Isopoda",rownames(PPmat)) == TRUE), 
+  which(grepl("Chilopoda",rownames(PPmat)) == TRUE),
+  which(grepl("Coleoptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Diptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Sternorrhyncha",rownames(PPmat)) == TRUE),
+  which(grepl("Neuropterida",rownames(PPmat)) == TRUE), 
+  which(grepl("Psocoptera",rownames(PPmat)) == TRUE), 
+  which(grepl("Araneae",rownames(PPmat)) == TRUE),
+  which(grepl("Thysanoptera",rownames(PPmat)) == TRUE)
 )
-mat[c("Plants", rownames(mat[Hemeno_HerbiPreys,])),"Hymenoptera:Herbivores-Predators" ] <- c(1, rep(1/length(Hemeno_HerbiPreys), length(Hemeno_HerbiPreys)))                            
-mat["Plants", "Hymenoptera:Herbivores"] <- 1                                      
-mat[c("Detritus", "Fungi"), "Hymenoptera:Detritivores-Fungivores"] <- c(1,1)
-mat[c("Plants", "Fungi", SoilMeso,SoilMacrofauna, Macrofauna), "Formicidae:Herbivores-Detritivores-Microbivores-Predators"] <- c(1, 0.5,rep(1/(length(SoilMeso)+length(SoilMacrofauna) + length(Macrofauna)),
-                                                                                                                                            (length(SoilMeso)+length(SoilMacrofauna) + length(Macrofauna))) )
+PPmat[Diptera_Preys, which(grepl("Diptera:", colnames(PPmat)) == TRUE )] <- 1  ###only apply to adults
 
-###Diptera 
-mat["Plants","Diptera:Herbivores" ]  <- 1
-mat["Fungi", "Diptera:Fungivores" ] <- 1
-mat[c("Plants", "Detritus"), "Diptera:Detrtivores-Herbivores" ] <- c(1,1)
-mat[Macrofauna, "Diptera:Predators" ]  <- rep(1/length(Macrofauna), length(Macrofauna)) 
-mat[c("Plants", Macrofauna), "Diptera:Herbivores-Predators" ] <- c(1, rep(1/length(Macrofauna), length(Macrofauna))) 
+PPmat[c(which(grepl("Formicidae",rownames(PPmat)) == TRUE), #suggested by schuldt 
+which(grepl("Hymenoptera",rownames(PPmat)) == TRUE)),#suggested by schuldt 
+                                       which(grepl("Diptera:Predators", colnames(PPmat)) == TRUE )] <- 1 
 
-DipLarve_Prey <- c(
-  which(grepl("Nemotoda", rownames(mat)) == TRUE), 
-  which(grepl("Lumbricidae", rownames(mat)) == TRUE), 
-  which(grepl("Enchytraeidae", rownames(mat)) == TRUE),
-  which(grepl("Larve", rownames(mat)) == TRUE)
+###The difference between normal predators and parasites 
+PPmat[c(which(grepl("Hemiptera", rownames(PPmat)) == TRUE), #suggested by schuldt 
+        which(grepl("Orthoptera",rownames(PPmat)) == TRUE),#suggested by schuldt 
+        which(grepl("Opiliones",rownames(PPmat)) == TRUE),#suggested by schuldt 
+        which(grepl("Larve",rownames(PPmat)) == TRUE)), 
+                                      which(grepl("Diptera:Predators:Parasites", colnames(PPmat)) == TRUE )] <- 1 
+
+
+##Diptera larve perform differently 
+DipLarve_Preys <- c(SoftMesoPreys, ## Feeding on other insects, particularly Larve 
+                    which(grepl("Diplura", rownames(PPmat)) == TRUE), ##
+  which(grepl("Nemotoda", rownames(PPmat)) == TRUE), ## Feeding on soil microfuana 
+  which(grepl("Lumbricina", rownames(PPmat)) == TRUE), ## Feeding on soil oligochaetes
+  which(grepl("Enchytraeidae", rownames(PPmat)) == TRUE),
+  which(grepl("Larve", rownames(PPmat)) == TRUE)
 )
-mat[c("Plants", "Detritus", "Fungi",rownames(mat[DipLarve_Prey,]) ),  "Diptera-Larve:Herbivores-Detritivores-Fungivores-Predators" ] <- c(1,1,1, 
-                                                                                                                                          rep(1/length(DipLarve_Prey), length(DipLarve_Prey)))
-###Hemiptera 
-Hemi_Prey <- c(  which(grepl("Diplopoda", rownames(mat)) == TRUE), 
-                    which(grepl("Orthoptera", rownames(mat)) == TRUE), #
-                    which(grepl("Hemiptera:Herbivores", rownames(mat)) == TRUE), #
-                    which(grepl("Opiliones", rownames(mat)) == TRUE), 
-                    which(grepl("Araneae", rownames(mat)) == TRUE), 
-                    which(grepl("Gastropoda",rownames(mat)) == TRUE), #
-                    which(grepl("Dermaptera",rownames(mat)) == TRUE),
-                    which(grepl("Thysanoptera",rownames(mat)) == TRUE),
-                    which(grepl("Coleoptera:Herbivores",rownames(mat)) == TRUE), 
-                    which(grepl("Lepidoptera-Larve:Herbivores",rownames(mat)) == TRUE),
-                    which(grepl("Diptera-Larve",rownames(mat)) == TRUE)
-               ) 
-
-mat[Hemi_Prey, c("Hemiptera:Predators", "Hemiptera:Herbivores-Predators")]   <- rep(1/length(Hemi_Prey), length(Hemi_Prey))                                     
-mat["Plants", c("Hemiptera:Herbivores","Hemiptera:Herbivores-Predators" )  ]  <- c( 1, 0.5) # Sternorrhyncha (scale insects, aphids, whiteflies,etc.)
+PPmat[c(DipLarve_Preys), which(grepl("Diptera-Larve", colnames(PPmat)) == TRUE )] <- 1  ###only apply to adults
+PPmat["Neuropterida-Larve", which(grepl("Diptera-Larve", colnames(PPmat)) == TRUE )] <- 0  ###only apply to adults
 
 
+###Hemiptera  # Barnes et al., 2020; Cedar Creek BEstudy, correlation matrix  and Anton's paper 
+Hemi_Preys <- c(  which(grepl("Psocoptera", rownames(PPmat)) == TRUE), ## smaller sizes 
+                  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+                 which(grepl("Diplopoda", rownames(PPmat)) == TRUE), 
+                 which(grepl("Formicidae", rownames(PPmat)) == TRUE),
+                 which(grepl("Hemiptera", rownames(PPmat)) == TRUE), #
+                 which(grepl("Orthoptera", rownames(PPmat)) == TRUE), #
+                 which(grepl("Neuropterida:", rownames(PPmat)) == TRUE), #
+                 which(grepl("Thysanoptera",rownames(PPmat)) == TRUE),
+                 which(grepl("Opiliones", rownames(PPmat)) == TRUE), 
+                 which(grepl("Araneae", rownames(PPmat)) == TRUE), 
+                 which(grepl("Dermaptera",rownames(PPmat)) == TRUE),
+                 which(grepl("Gastropoda",rownames(PPmat)) == TRUE), #the size is way much bigger than Hemi_Predators 
+                 which(grepl("Pseudoscorpiones", rownames(PPmat)) == TRUE), ## smaller sizes 
+                 which(grepl("Coleoptera-Larve",rownames(PPmat)) == TRUE), ## Coleopera:Herbivores in our study is way more larger
+                 which(grepl("Lepidoptera-Larve",rownames(PPmat)) == TRUE),
+                 which(grepl("Diptera-Larve",rownames(PPmat)) == TRUE) ##The HemiPedators can barely fly 
+) 
+
+PPmat[Hemi_Preys,  which(grepl("Hemiptera", colnames(PPmat)) == TRUE )]   <- 1
+
+### The hemiptera who only rely on predation, they probably have a wider niches 
+PPmat[c(
+  which(grepl("Collembola", rownames(PPmat)) == TRUE), ## suggested by schuldt 
+  which(grepl("Chilopoda:Geophilomorpha", rownames(PPmat)) == TRUE), ## suggested by schuldt 
+  which(grepl("Coleoptera", rownames(PPmat)) == TRUE), ## suggested by schuldt 
+  which(grepl("Hymenoptera-Larve", rownames(PPmat)) == TRUE)),  ## suggested by schuldt 
+                              which(grepl("Hemiptera:Predators", colnames(PPmat)) == TRUE )]   <- 1
+
+##Orthoptera
 Orth_Preys <- c ( ### Predate small insects ## Song 2018 
-  which(grepl("Collembola", rownames(mat)) == TRUE ),# 
-  which(grepl("Hemiptera", rownames(mat)) == TRUE), #
-  which(grepl("Thysanoptera",rownames(mat)) == TRUE),
-  which(grepl("Diptera",rownames(mat)) == TRUE),
-  which(grepl("Psocoptera",rownames(mat)) == TRUE)
+  which(grepl("Collembola", rownames(PPmat)) == TRUE ),# 
+  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+  which(grepl("Diptera",rownames(PPmat)) == TRUE),
+  which(grepl("Hemiptera", rownames(PPmat)) == TRUE), #
+  which(grepl("Thysanoptera",rownames(PPmat)) == TRUE),
+  which(grepl("Psocoptera",rownames(PPmat)) == TRUE)
 )
-mat[c("Plants", "Detritus"),  "Orthoptera:Herbivores-Detritivores"] <- c(1,0.5)
-mat[c("Plants", "Detritus"), "Orthoptera:Herbivores-Detritivores-Predators" ] <- c(1,0.5)
-mat["Plants", "Orthoptera:Herbivores-Predators"] <- 1
-mat[Orth_Preys, c("Orthoptera:Herbivores-Detritivores-Predators","Orthoptera:Herbivores-Predators" )] <- rep(1/length(Orth_Preys), length(Orth_Preys))
+PPmat[Orth_Preys,  which(grepl("Orthoptera", colnames(PPmat)) == TRUE )]   <- 1
+ 
+
+## "Trichoptera:Predators"  --> Rhyacophilidae, the adults don't eat, like moth 
+Neurop_Preys <- c(
+  which(grepl("Prostigmata", rownames(PPmat)) == TRUE),
+  which(grepl("Hymenoptera:", rownames(PPmat)) == TRUE),
+  which(grepl("Formicidae", rownames(PPmat)) == TRUE),
+  which(grepl("Diptera", rownames(PPmat)) == TRUE),
+  which(grepl("Hemiptera:Herbivores", rownames(PPmat)) == TRUE)
+  # Devetak and Klokocovik 2016, a review on Neuropterida 
+)
+PPmat[Neurop_Preys,  which(grepl("Neuropterida:", colnames(PPmat)) == TRUE )]   <- 1
+
+##Neurope_Larve, the predators
+NeuropLarve_Preys <- c(
+  SoftMesoPreys, 
+  which(grepl("Prostigmata", rownames(PPmat)) == TRUE),
+  which(grepl("Oribatida", rownames(PPmat)) == TRUE),
+  which(grepl("Ixodida", rownames(PPmat)) == TRUE),
+  which(grepl("Formicidae", rownames(PPmat)) == TRUE)
+  # Devetak and Klokocovik 2016, a review on Neuropterida 
+)
+PPmat[NeuropLarve_Preys,  which(grepl("Neuropterida-Larve", colnames(PPmat)) == TRUE )]   <- 1
+
+####Raphidioptera
+Odonate_Preys <- c(
+  # which(grepl("Diplura", rownames(PPmat)) == TRUE),
+  # which(grepl("Collembola", rownames(PPmat)) == TRUE),
+  which(grepl("Coleoptera:", rownames(PPmat)) == TRUE), 
+  which(grepl("Hymenoptera:", rownames(PPmat)) == TRUE),
+  which(grepl("Diptera:", rownames(PPmat)) == TRUE),
+  which(grepl("Hemiptera:", rownames(PPmat)) == TRUE),
+  which(grepl("Orthoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Neuropterida:", rownames(PPmat)) == TRUE),
+  which(grepl("Lepidoptera:", rownames(PPmat) ) == TRUE), 
+  which(grepl("Odonate", colnames(PPmat)) == TRUE)
+)
+PPmat[Odonate_Preys,  which(grepl("Odonate", colnames(PPmat)) == TRUE )]   <- 1
+
+# Have combine this into Neuropterida 
+##Easily miss how is prey on this one 
+# Raphid_Predators <- c(
+#   which(grepl("Araneae:Weavers", colnames(PPmat)) == TRUE),
+#   which(grepl("Coleoptera:", colnames(PPmat)) == TRUE),
+#   which(grepl("Hymenoptera:", colnames(PPmat)) == TRUE),
+#   which(grepl("Opiliones", colnames(PPmat)) == TRUE),
+#   which(grepl("Odonate", colnames(PPmat)) == TRUE)
+# )
+# PPmat[ which(grepl("Raphidioptera",rownames(PPmat)) == TRUE ), Raphid_Predators]   <- 1
 
 
+###Spiders 
+SpiderWonder_Preys <- c( ## Anton's paper,  # Barnes et al., 2020; Cedar Creek BEstudy, correlation matrix
+  ## Hines et al., 2019 Jena interaction matrixes 
+  which(grepl("Pauropoda", rownames(PPmat)) == TRUE), ##suggested by schuldt
+  which(grepl("Symphyla", rownames(PPmat)) == TRUE), ##suggested by schuldt
+  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+  which(grepl("Collembola", rownames(PPmat)) == TRUE),
+  which(grepl("Chilopoda", rownames(PPmat)) == TRUE),
+  which(grepl("Isopoda", rownames(PPmat)) == TRUE),
+  which(grepl("Diplopoda", rownames(PPmat)) == TRUE),
+  which(grepl("Coleoptera", rownames(PPmat)) == TRUE), 
+  which(grepl("Hymenoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Formicidae", rownames(PPmat)) == TRUE),
+  which(grepl("Diptera", rownames(PPmat)) == TRUE),
+  which(grepl("Hemiptera", rownames(PPmat)) == TRUE),
+  which(grepl("Orthoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Thysanoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Psocoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Neuropterida", rownames(PPmat)) == TRUE),
+  which(grepl("Opiliones", rownames(PPmat)) == TRUE),
+  which(grepl("Araneae", rownames(PPmat)) == TRUE),
+  which(grepl("Dermaptera", rownames(PPmat)) == TRUE),
+  which(grepl("Pseudoscorpiones", rownames(PPmat)) == TRUE),
+  which(grepl("Odonate", rownames(PPmat)) == TRUE), 
+  which(grepl("Larve", rownames(PPmat)) == TRUE)
+)
 
+PPmat[SpiderWonder_Preys, which(grepl("Araneae:Wandering", colnames(PPmat)) == TRUE )] <- 1
+
+######for the araneae:weavers, they are more likely to adapt to catch flying insects 
+##They are less likely feed on Larves 
+SpiderWeaver_Preys <- c( ## Anton's paper,  # Barnes et al., 2020; Cedar Creek BEstudy, correlation matrix
+  ## Hines et al., 2019 Jena interaction matrixes 
+   which(grepl("Diplura", rownames(PPmat)) == TRUE),
+   which(grepl("Collembola", rownames(PPmat)) == TRUE),
+   which(grepl("Chilopoda", rownames(PPmat)) == TRUE),
+   which(grepl("Isopoda", rownames(PPmat)) == TRUE),
+  which(grepl("Diplopoda", rownames(PPmat)) == TRUE),
+  which(grepl("Coleoptera:", rownames(PPmat)) == TRUE), 
+  which(grepl("Hymenoptera:", rownames(PPmat)) == TRUE),
+  which(grepl("Formicidae", rownames(PPmat)) == TRUE),
+  which(grepl("Diptera:", rownames(PPmat)) == TRUE),
+  which(grepl("Hemiptera:", rownames(PPmat)) == TRUE),
+  which(grepl("Orthoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Thysanoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Psocoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Neuropterida:", rownames(PPmat)) == TRUE),
+  which(grepl("Opiliones", rownames(PPmat)) == TRUE),
+  which(grepl("Araneae", rownames(PPmat)) == TRUE),
+  which(grepl("Dermaptera", rownames(PPmat)) == TRUE),
+  which(grepl("Pseudoscorpiones", rownames(PPmat)) == TRUE),
+  which(grepl("Odonate:", rownames(PPmat)) == TRUE)
+)
+
+PPmat[SpiderWeaver_Preys, which(grepl("Araneae:Weavers", colnames(PPmat)) == TRUE )] <- 1
+
+
+####Opiliones
+Opilion_Preys <- c( ## Potapov et al., 2022
+  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+  which(grepl("Collembola", rownames(PPmat)) == TRUE),
+  which(grepl("Mesostigmata", rownames(PPmat)) == TRUE),
+  which(grepl("Diplopoda", rownames(PPmat)) == TRUE),
+  which(grepl("Isopoda", rownames(PPmat)) == TRUE),
+  which(grepl("Araneae", rownames(PPmat)) == TRUE),
+  which(grepl("Coleoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Hymenoptera", rownames(PPmat)) == TRUE), ##suggested by schuldt
+  which(grepl("Hemiptera", rownames(PPmat)) == TRUE),
+  which(grepl("Thysanoptera", rownames(PPmat)) == TRUE),
+  which(grepl("Gastropoda",rownames(PPmat)) == TRUE), 
+  which(grepl("Diptera", rownames(PPmat)) == TRUE),
+  #which(grepl("Raphidioptera", rownames(PPmat)) == TRUE),
+  which(grepl("Neuropterida:", rownames(PPmat)) == TRUE),
+  which(grepl("Opiliones", rownames(PPmat)) == TRUE),
+  which(grepl("Pseudoscorpiones", rownames(PPmat)) == TRUE),
+  which(grepl("Larve", rownames(PPmat)) == TRUE),
+  which(grepl("Pupea", rownames(PPmat)) == TRUE),
+  which(grepl("Lumbricina", rownames(PPmat)) == TRUE),
+  which(grepl("Lepidoptera", rownames(PPmat) ) == TRUE)
+)
+
+PPmat[Opilion_Preys, which(grepl("Opiliones", colnames(PPmat)) == TRUE )] <- 1
+
+
+##Dermaptera
 Dermaptera_Preys <- c (
-  which(grepl("Hemiptera:Herbivores", rownames(mat)) == TRUE),
-  which(grepl("Diptera-Larve", rownames(mat)) == TRUE),
-  which(grepl("Psocoptera", rownames(mat)) == TRUE), 
-  which(grepl("Lepidoptera-Larve:Herbivores", rownames(mat) ) == TRUE)
-)
-mat[c("Plants","Detritus", "Fungi", "Bacteria"), "Dermaptera:Herbivores-Detritivores-Predators"] <- c(0.5,1,0.5,0.5)
-mat[Dermaptera_Preys,"Dermaptera:Herbivores-Detritivores-Predators" ]   <-    rep(1/length(Dermaptera_Preys), length(Dermaptera_Preys) )
-
-##
-mat["Fungi", "Thysanoptera:Fungivores"] <- 1
-
-##
-mat["Plants",  "Lepidoptera-Larve:Herbivores"  ] <- 1
-
-Spider_Preys <- c(
-  which(grepl("Collembola", rownames(mat)) == TRUE),
-  which(grepl("Chilopoda", rownames(mat)) == TRUE),
-  which(grepl("Diplopoda", rownames(mat)) == TRUE),
-  which(grepl("Isopoda", rownames(mat)) == TRUE),
-  which(grepl("Dermaptera", rownames(mat)) == TRUE),
-  which(grepl("Orthoptera", rownames(mat)) == TRUE),
-  which(grepl("Diptera", rownames(mat)) == TRUE),
-  which(grepl("Hemiptera", rownames(mat)) == TRUE),
-  which(grepl("Hymenoptera", rownames(mat)) == TRUE),
-  which(grepl("Formicidae", rownames(mat)) == TRUE),
-  which(grepl("Thysanoptera", rownames(mat)) == TRUE),
-  which(grepl("Coleoptera", rownames(mat)) == TRUE),
-  which(grepl("Opiliones", rownames(mat)) == TRUE),
-  which(grepl("Araneae", rownames(mat)) == TRUE),
-  which(grepl("Psocoptera", rownames(mat)) == TRUE),
-  which(grepl("Trichoptera", rownames(mat)) == TRUE),
+  which(grepl("Diplura", rownames(PPmat)) == TRUE),
+  which(grepl("Collembola", rownames(PPmat)) == TRUE), ##Suggested by Olga
+  which(grepl("Coleoptera", rownames(PPmat)) == TRUE),###suggested by Olga 
+  which(grepl("Hemiptera", rownames(PPmat)) == TRUE),
+  which(grepl("Diptera:", rownames(PPmat)) == TRUE), ##suggested by Olga 
+  ##maybe they don't eat diptera:parasites 
+  which(grepl("Diptera-Larve", rownames(PPmat)) == TRUE),
+  which(grepl("Neuropterida:", rownames(PPmat)) == TRUE),
+  which(grepl("Psocoptera", rownames(PPmat)) == TRUE), 
+  which(grepl("Gastropoda",rownames(PPmat)) == TRUE), ##suggested by Olga 
+  which(grepl("Larve", rownames(PPmat)) == TRUE), ##suggested by Olga
+  which(grepl("Lepidoptera", rownames(PPmat) ) == TRUE)
 )
 
-mat[Spider_Preys, c("Araneae:Wandering" , "\r\nAraneae:Weavers")] <- req(1/length(Spider_Preys), length(Spider_Preys))                                        
-                                        
-Opilion_Preys <- c(
-  which(grepl("Collembola", rownames(mat)) == TRUE),
-  which(grepl("Araneae", rownames(mat)) == TRUE),
-  which(grepl("Diplopoda", rownames(mat)) == TRUE),
-  which(grepl("Isopoda", rownames(mat)) == TRUE),
-  which(grepl("Gastropoda",rownames(mat)) == TRUE), 
-  which(grepl("Diptera", rownames(mat)) == TRUE),
-  which(grepl("Diptera", rownames(mat)) == TRUE),
-  which(grepl("Lepidoptera-Larve:Herbivores",rownames(mat)) == TRUE)
-)
-mat[c("Plants", rownames(mat[Opilion_Preys,])),  "Opiliones:Predators"] <- c(0.5, rep(1/length(Opilion_Preys),length(Opilion_Preys) ))
-
-"Pseudoscorpiones:Predators" 
-"Trichoptera:Predators"                                        
-[31] "Neuroptera:Predators"
+PPmat[Dermaptera_Preys, which(grepl("Dermaptera", colnames(PPmat)) == TRUE )] <- 1
 
 
+###All of the prey-predator interaction only validate if their diets include animals 
+is.pred <- Feedgroup[,c("Group", "Animals")]  %>% unique %>% mutate(Animals = ifelse(is.na(Animals), 0, 1))
+
+PPMAT <- matrix(NA, nrow = length(is.pred$Group), ncol = length(is.pred$Group))
+for(i in 1:length(is.pred$Group)) {
+  for(p in 1:length(PPmat)){
+    PPMAT[p,i] <- PPmat[p,i]*is.pred$Animals[[i]]
+  }
+}
+colnames(PPMAT) <- rownames(PPMAT) <- groups
+
+# # ##Combine other resources into the prey-predators matrix
+#  Otherfoods <- Feedgroup[,c("Group", "Plants", "Algea", "Detritus", "Bacteria", "Fungi")] %>% unique %>% 
+#    mutate_at (c("Plants", "Algea", "Detritus", "Bacteria", "Fungi" ),~ifelse(is.na(.x), 0,1)) %>% select(!Group)
+# #
+#  PPMAT <- rbind(t(Otherfoods), PPMAT) %>% as.data.frame %>% mutate (Plants =0, Algea = 0, Detritus = 0, Bacteria = 0, Fungi = 0, .before = "Oribatida:Herbivores-Fungivores")
+#  PPMAT["Detritus", "Bacteria"] <- 1
+#  PPMAT[c("Detritus", "Plants"), "Fungi"] <- 1
+# 
+# ###output and double-check
+# write.csv(PPMAT, file = "PPMAT_3rd.csv")
