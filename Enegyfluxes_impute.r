@@ -1,10 +1,11 @@
 # Energyflux_Mydiv
 # Now is calculate the energy fluxes for each plot 
-Use for second project, to construct the food web and calculate the energy fluxes 
+
 #load the datasets to change for the efficiency 
 Prop_CN <- read_excel("PropCandPropN_Functionalgroup.xlsx") 
 Prop_CN$Logit_ea = 0.471*(Prop_CN$PropN*100) - 2.097
 Prop_CN$efficiency = round(exp(Prop_CN$Logit_ea)/(1+exp(Prop_CN$Logit_ea)),2)
+
 #load the codes for mydiv treatments 
 Mydiv_code <- read_csv("H:/1. Huimin_2021/Energy flux/Datasets/Copy of Mydiv_code.csv")
 
