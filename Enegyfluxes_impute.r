@@ -1,4 +1,5 @@
 # Energyflux_Mydiv
+# Now is calculate the energy fluxes for each plot 
 Use for second project, to construct the food web and calculate the energy fluxes 
 #load the datasets to change for the efficiency 
 Prop_CN <- read_excel("PropCandPropN_Functionalgroup.xlsx") 
